@@ -3,6 +3,7 @@ options [
     static: false       "Build static library"
     ftest:  false       "Build faun_test program (modifies library)"
     load-mem: true      "Include functions to load buffers from memory"
+    examples: false     "Build example programs"
 ]
 
 if int? flac [
@@ -58,8 +59,9 @@ if ftest [
     ]
 ]
 
-exe %basic [
-    console faun-link sources [%example/basic.c]
+if examples [
+    exe %basic     [console faun-link sources [%example/basic.c]]
+    exe %crossfade [console faun-link sources [%example/crossfade.c]]
 ]
 
 dist [

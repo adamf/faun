@@ -44,9 +44,9 @@ endif
 
 ifeq ($(FTEST),1)
 OPT+=-DCAPTURE
-all: $(FAUN_LIB) basic faun_test
+all: $(FAUN_LIB) basic crossfade faun_test
 else
-all: $(FAUN_LIB) basic
+all: $(FAUN_LIB) basic crossfade
 endif
 
 obj:
@@ -75,6 +75,9 @@ faun_test: faun_test.c $(FAUN_LIB)
 basic: example/basic.c $(FAUN_LIB)
 	$(CC) -Wall -W $< $(CFLAGS) -I. -L. -lfaun $(DEP_STATIC) $(LDFLAGS) -o $@
 
+crossfade: example/crossfade.c $(FAUN_LIB)
+	$(CC) -Wall -W $< $(CFLAGS) -I. -L. -lfaun $(DEP_STATIC) $(LDFLAGS) -o $@
+
 install:
 	mkdir -p $(DESTDIR)/include $(LIB_DIR)
 	install -m 644 faun.h $(DESTDIR)/include
@@ -87,7 +90,7 @@ else
 endif
 
 clean:
-	@rm -rf obj libfaun.* faun_test basic
+	@rm -rf obj libfaun.* faun_test basic crossfade
 
 sdks:
 	@rm -f project.tar.gz

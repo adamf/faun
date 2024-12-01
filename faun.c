@@ -2084,6 +2084,9 @@ static void faun_command2(int op, int select)
   \example basic.c
   This is a basic example of how to use the API.
 
+  \example crossfade.c
+  This example shows how to cross fade two streams.
+
   \file faun.h
   The Faun programmer interface.
 
