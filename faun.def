@@ -20,3 +20,4 @@ EXPORTS
   faun_loadBufferSfx     @18
   faun_pan               @19
   faun_isPlaying         @20
+  faun_idleSource        @21

@@ -123,6 +123,7 @@ uint32_t faun_playStream(int si, const char* file, uint32_t offset,
                          uint32_t size, int mode);
 void faun_playStreamPart(int si, double start, double duration, int mode);
 int  faun_isPlaying(uint32_t pid);
+int  faun_idleSource(int start, int end, int it);
 
 #ifdef __cplusplus
 }

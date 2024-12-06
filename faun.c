@@ -2926,3 +2926,31 @@ int faun_isPlaying(uint32_t pid)
     }
     return 0;
 }
+
+
+/**
+  Find a source that is not playing.
+
+  \param start  Beginning index of range.
+  \param end    Ending index of range.
+  \param it     Position in range from which to begin checking.
+
+  \returns Source index or -1 if all in range are being used.
+*/
+int faun_idleSource(int start, int end, int it)
+{
+    if (_audioUp)
+    {
+        int si = it;
+        assert(it < end);
+        for (; si != end; ++si) {
+            if (_playbackId[si] == NUL_PLAY_ID)
+                return si;
+        }
+        for (; start < it; ++start) {
+            if (_playbackId[start] == NUL_PLAY_ID)
+                return start;
+        }
+    }
+    return -1;
+}
