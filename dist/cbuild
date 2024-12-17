@@ -33,13 +33,14 @@ windows)
   mkdir faun
   cd faun
   tar xf /tmp/project.tar.gz
-  copr -t mingw static:true
+  copr -t mingw static:true flac:none
 ' >$HDIR/${SCRIPT}
 
     #LIB_NAME=libfaun.dll
     #ARC_NAME=faun-x86_64-w64-mingw32-dynamic-${VERS}.zip
     LIB_NAME=libfaun.a
     ARC_NAME=faun-x86_64-w64-mingw32-static-${VERS}.zip
+    DLL_BIN=/usr/x86_64-w64-mingw32/sys-root/mingw/bin
 
     container_build dev/f35-mingw
     podman cp $ID:/home/build/faun/${LIB_NAME} ${ARC_DIR}/lib || exit
@@ -47,10 +48,11 @@ windows)
 
     # Build archive.
     if [ "$2" != "-b" ]; then
+        mkdir -p ${ARC_DIR}/bin
+        podman cp $ID:${DLL_BIN}/libogg-0.dll ${ARC_DIR}/bin
+        podman cp $ID:${DLL_BIN}/libvorbis-0.dll ${ARC_DIR}/bin
+        podman cp $ID:${DLL_BIN}/libvorbisfile-3.dll ${ARC_DIR}/bin
         cp faun.h ${ARC_DIR}/include
-        FN=`readlink -f vorbis-dll.tar.bz2`
-        tar xf $FN -C ${ARC_DIR}
-       #cd ${ARC_DIR%/*}; zip -r ${ARC_NAME} ${ARC_DIR##*/}
         cd ${ARC_DIR}; zip -r ../${ARC_NAME} *
     fi
     ;;
