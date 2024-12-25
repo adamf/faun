@@ -121,15 +121,35 @@ static void sysaudio_close()
 static const char* sysaudio_allocVoice(FaunVoice* voice, int updateHz,
                                        const char* appName)
 {
-    REFERENCE_TIME bufTime = 50 * 10000;    // 50 ms of latency
-    //REFERENCE_TIME minPeriod;
+    //const REFERENCE_TIME oneSecondR = 10000000;
+    REFERENCE_TIME bufTime;
+    REFERENCE_TIME defPeriod;
+    const char* env;
     BYTE* rbuf;
     void* ptr;
     UINT32 frameCount;
     HRESULT hr;
-    (void) voice;
     (void) updateHz;
     (void) appName;
+
+
+    hr = IAudioClient_GetDevicePeriod(waSession.client, &defPeriod, NULL);
+    if (FAILED(hr))
+        return waError("GetDevicePeriod failed", hr);
+    bufTime = defPeriod * 3;
+
+    env = getenv("FAUN_BTIME");
+    if (env) {
+        int bt, hz;
+        sscanf(env, "%d:%d", &bt, &hz);
+        printf("Faun bufTime: %d updateHz: %d\n", bt, hz);
+        bufTime = bt;
+        voice->updateHz = hz;
+    }
+    /*
+    else
+        voice->updateHz = 1000 / (oneSecondR / (defPeriod * 4));
+    */
 
     hr = IAudioClient_Initialize(waSession.client, AUDCLNT_SHAREMODE_SHARED,
                                  AUDCLNT_STREAMFLAGS_NOPERSIST |
@@ -138,18 +158,22 @@ static const char* sysaudio_allocVoice(FaunVoice* voice, int updateHz,
                                  bufTime, 0, &waSession.format, NULL);
     if (FAILED(hr))
         return waError("AudioClient Initialize failed", hr);
-
-#if 0
-    hr = IAudioClient_GetDevicePeriod(waSession.client, &minPeriod, NULL);
-    if (FAILED(hr))
-        return waError("GetDevicePeriod failed", hr);
-    printf("KR minPeriod: %I64d\n", minPeriod);
+//#define REPORT
+#ifdef REPORT
+    printf("IAC bufTime: %I64lld defPeriod: %I64lld\n", bufTime, defPeriod);
 #endif
 
     hr = IAudioClient_GetBufferSize(waSession.client, &frameCount);
     if (FAILED(hr))
         return waError("GetBufferSize failed", hr);
     waSession.rbufSize = frameCount;
+
+    faun_reserve(&voice->mix, frameCount);
+    voice->mix.used = frameCount;
+    //voice->updateHz = voice->mix.rate / frameCount;
+#ifdef REPORT
+    printf("IAC frameCount: %d updateHz: %d\n", frameCount, voice->updateHz);
+#endif
 
     hr = IAudioClient_GetService(waSession.client, &IID_IAudioRenderClient,
                                  &ptr);
@@ -182,37 +206,59 @@ static void sysaudio_freeVoice(FaunVoice *voice)
     //voice->backend = NULL;
 }
 
+#ifdef REPORT
+static int writeCycle = 0;
+#endif
+
 static const char* sysaudio_write(FaunVoice* voice, const void* data,
                                   uint32_t len)
 {
+    BYTE* dataPos = (BYTE*) data;
     BYTE* rbuf;
     HRESULT hr;
     UINT32 padding;
-    UINT32 framesAvail;
+    UINT32 favail;
     UINT32 flen = len / waSession.format.nBlockAlign;
-    DWORD ms;
+#ifdef REPORT
+    UINT32 stat[10];
+    UINT32 statUsed = 0;
+#endif
     (void) voice;
 
 
-    while (1) {
+    while (flen) {
         hr = IAudioClient_GetCurrentPadding(waSession.client, &padding);
         if (FAILED(hr))
             return waError("GetCurrentPadding failed", hr);
 
-        framesAvail = waSession.rbufSize - padding;
-        if (framesAvail >= flen)
-            break;
+        favail = waSession.rbufSize - padding;
+#ifdef REPORT
+        stat[statUsed++] = favail;
+#endif
+        if (favail > 0) {
+            if (favail > flen)
+                favail = flen;
+            len = favail * waSession.format.nBlockAlign;
 
-        ms = (flen - framesAvail) * 1000 / voice->mix.rate;
-        //printf("  Sleep(%ld)\n", ms);
-        Sleep(ms);
+            hr = IAudioRenderClient_GetBuffer(waSession.render, favail, &rbuf);
+            if (FAILED(hr))
+                return waError("GetBuffer failed", hr);
+            memcpy(rbuf, dataPos, len);
+            IAudioRenderClient_ReleaseBuffer(waSession.render, favail, 0);
+
+            dataPos += len;
+            flen -= favail;
+        } else {
+            Sleep(2);
+        }
     }
 
-    hr = IAudioRenderClient_GetBuffer(waSession.render, flen, &rbuf);
-    if (FAILED(hr))
-        return waError("GetBuffer failed", hr);
-    memcpy(rbuf, data, len);
-    IAudioRenderClient_ReleaseBuffer(waSession.render, flen, 0);
+#ifdef REPORT
+    printf("write %d [", writeCycle++);
+    for (UINT32 i = 0; i < statUsed; ++i)
+        printf("%d ", stat[i]);
+    printf("]\n");
+#endif
     return NULL;
 }
 

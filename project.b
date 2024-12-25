@@ -59,6 +59,8 @@ if ftest [
     ]
 ]
 
+;exe %write_test [console faun-link sources [%write_test.c]]
+
 if examples [
     exe %basic     [console faun-link sources [%example/basic.c]]
     exe %crossfade [console faun-link sources [%example/crossfade.c]]
