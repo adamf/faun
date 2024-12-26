@@ -86,6 +86,7 @@ deb)
     fi
     debspec.b dist/faun.spec >$HDIR/faun.spec
     podman run -d -it --name=$ID dev/debian12 /bin/bash || exit
+    # podman exec -u root build-122858 apt -y install libflac-dev
     podman cp $HDIR/faun.spec $ID:$CDIR
     podman cp $HDIR/v${VERS}.tar.gz $ID:$BTOP/SOURCES
     podman exec -it $ID debbuild -ba $CDIR/faun.spec
