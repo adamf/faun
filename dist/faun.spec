@@ -1,6 +1,6 @@
 Summary: High-level C library for playing sound & music
 Name: faun
-Version: 0.2.0
+Version: 0.2.1
 Release: %autorelease
 License: MIT
 URL: https://codeberg.org/wickedsmoke/faun
