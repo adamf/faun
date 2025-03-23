@@ -1470,7 +1470,8 @@ static void faun_evalProg(FaunProgram* prog, uint32_t mixClock)
 
             case FO_START_STREAM:
                 if (prog->si >= _sourceLimit) {
-                    source_setMode(_asource + prog->si, pc[0]);
+                    if (pc[0])
+                        source_setMode(_asource + prog->si, pc[0]);
                     stream_start(_stream + (prog->si - _sourceLimit));
                 }
                 ++pc;
