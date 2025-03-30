@@ -1,5 +1,5 @@
 #if USE_FLAC == 2
-#include "flac.c"
+#include "foxen-flac.c"
 
 static const char* foxenFlacDecode(FILE* fp, uint32_t size, FaunBuffer* buf,
                                    const void* preRead, size_t preReadLen)

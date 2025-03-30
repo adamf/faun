@@ -4,7 +4,7 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
   echo "Configuration Options:"
   echo "  -h, --help        Display this help and exit"
   echo "  --no_flac         Exclude FLAC decoder"
-  echo "  --foxenflac       Use Foxen FLAC decoder (makes library GPLv2+)"
+  echo "  --foxenflac       Use Foxen FLAC decoder (makes library LGPLv2.1+)"
   echo "  --static          Build static library (default is shared)"
   echo "  --test            Build faun_test program (modifies library)"
   echo "  --prefix <dir>    Set install directory root"
