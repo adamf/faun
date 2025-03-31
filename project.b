@@ -2,12 +2,18 @@ options [
     flac:   'libflac    "FLAC loader implementation ('libflac 'foxen none)"
     static: false       "Build static library"
     ftest:  false       "Build faun_test program (modifies library)"
+    wtest:  false       "Build write_test program (modifies library)"
     load-mem: true      "Include functions to load buffers from memory"
     examples: false     "Build example programs"
 ]
 
 if int? flac [
     flac: pick [libflac foxen] flac
+]
+
+if wtest [
+    static: true
+    ftest: false
 ]
 
 libfaun: [
@@ -17,6 +23,7 @@ libfaun: [
         foxen   [cflags "-DUSE_FLAC=2"]
     ]
     if ftest [cflags "-DCAPTURE"]
+    if wtest [cflags "-DREPORT"]
     if load-mem [cflags "-DUSE_LOAD_MEM"]
     include_from %support
     if msvc [include_from %../usr/include]
@@ -54,13 +61,11 @@ either static [
 ]
 
 if ftest [
-    exe %faun_test [
-        console faun-link sources [%faun_test.c]
-    ]
+    exe %faun_test [console faun-link sources [%faun_test.c]]
 ]
-
-;exe %write_test [console faun-link sources [%write_test.c]]
-
+if wtest [
+    exe %write_test [console faun-link sources [%write_test.c]]
+]
 if examples [
     exe %basic     [console faun-link sources [%example/basic.c]]
     exe %crossfade [console faun-link sources [%example/crossfade.c]]
@@ -71,4 +76,5 @@ dist [
     %support/cpuCounter.h
     %sys_pulseaudio.c
     %sys_wasapi.c
+    %write_test.c
 ]
