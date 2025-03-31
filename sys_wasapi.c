@@ -158,22 +158,31 @@ static const char* sysaudio_allocVoice(FaunVoice* voice, int updateHz,
                                  bufTime, 0, &waSession.format, NULL);
     if (FAILED(hr))
         return waError("AudioClient Initialize failed", hr);
-//#define REPORT
-#ifdef REPORT
-    printf("IAC bufTime: %I64lld defPeriod: %I64lld\n", bufTime, defPeriod);
-#endif
 
     hr = IAudioClient_GetBufferSize(waSession.client, &frameCount);
     if (FAILED(hr))
         return waError("GetBufferSize failed", hr);
     waSession.rbufSize = frameCount;
 
+#ifdef REPORT
+    printf("write_test %s %s\n"
+           "IAC bufTime: %I64lld defPeriod: %I64lld\n"
+           "IAC bufSize: %d frames\n",
+           __DATE__, __TIME__,
+           bufTime, defPeriod, frameCount);
+
+    env = getenv("FAUN_MIX");
+    if (env) {
+        int mix;
+        sscanf(env, "%d", &mix);
+        frameCount = mix;
+    }
+    printf("Mixer frameCount: %d updateHz: %d\n", frameCount, voice->updateHz);
+#endif
+
     faun_reserve(&voice->mix, frameCount);
     voice->mix.used = frameCount;
     //voice->updateHz = voice->mix.rate / frameCount;
-#ifdef REPORT
-    printf("IAC frameCount: %d updateHz: %d\n", frameCount, voice->updateHz);
-#endif
 
     hr = IAudioClient_GetService(waSession.client, &IID_IAudioRenderClient,
                                  &ptr);
@@ -220,8 +229,8 @@ static const char* sysaudio_write(FaunVoice* voice, const void* data,
     UINT32 favail;
     UINT32 flen = len / waSession.format.nBlockAlign;
 #ifdef REPORT
-    UINT32 stat[10];
-    UINT32 statUsed = 0;
+    int32_t stat[22];
+    int statUsed = 0;
 #endif
     (void) voice;
 
@@ -236,8 +245,12 @@ static const char* sysaudio_write(FaunVoice* voice, const void* data,
         stat[statUsed++] = favail;
 #endif
         if (favail > 0) {
-            if (favail > flen)
+            if (favail > flen) {
+#ifdef REPORT
+                stat[statUsed++] = (int32_t) flen - favail;
+#endif
                 favail = flen;
+            }
             len = favail * waSession.format.nBlockAlign;
 
             hr = IAudioRenderClient_GetBuffer(waSession.render, favail, &rbuf);
@@ -255,7 +268,7 @@ static const char* sysaudio_write(FaunVoice* voice, const void* data,
 
 #ifdef REPORT
     printf("write %d [", writeCycle++);
-    for (UINT32 i = 0; i < statUsed; ++i)
+    for (int i = 0; i < statUsed; ++i)
         printf("%d ", stat[i]);
     printf("]\n");
 #endif
