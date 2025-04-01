@@ -121,7 +121,7 @@ static void sysaudio_close()
 static const char* sysaudio_allocVoice(FaunVoice* voice, int updateHz,
                                        const char* appName)
 {
-    //const REFERENCE_TIME oneSecondR = 10000000;
+    const REFERENCE_TIME oneSecondR = 10000000;
     REFERENCE_TIME bufTime;
     REFERENCE_TIME defPeriod;
     const char* env;
@@ -129,6 +129,7 @@ static const char* sysaudio_allocVoice(FaunVoice* voice, int updateHz,
     void* ptr;
     UINT32 frameCount;
     HRESULT hr;
+    int32_t mixFrames;
     (void) updateHz;
     (void) appName;
 
@@ -136,7 +137,6 @@ static const char* sysaudio_allocVoice(FaunVoice* voice, int updateHz,
     hr = IAudioClient_GetDevicePeriod(waSession.client, &defPeriod, NULL);
     if (FAILED(hr))
         return waError("GetDevicePeriod failed", hr);
-    bufTime = defPeriod * 3;
 
     env = getenv("FAUN_BTIME");
     if (env) {
@@ -145,11 +145,14 @@ static const char* sysaudio_allocVoice(FaunVoice* voice, int updateHz,
         printf("Faun bufTime: %d updateHz: %d\n", bt, hz);
         bufTime = bt;
         voice->updateHz = hz;
+    } else {
+        bufTime = defPeriod * 3;
+
+        /* Use the default 48 Hz update.  The update for 100000 * 3 should be
+           33.33 Hz, but audio breaks up unless it is 44-48.
+        */
+        //voice->updateHz = (uint32_t) (oneSecondR / bufTime);
     }
-    /*
-    else
-        voice->updateHz = 1000 / (oneSecondR / (defPeriod * 4));
-    */
 
     hr = IAudioClient_Initialize(waSession.client, AUDCLNT_SHAREMODE_SHARED,
                                  AUDCLNT_STREAMFLAGS_NOPERSIST |
@@ -164,6 +167,12 @@ static const char* sysaudio_allocVoice(FaunVoice* voice, int updateHz,
         return waError("GetBufferSize failed", hr);
     waSession.rbufSize = frameCount;
 
+    // Always mix a multiple of defPeriod (441 frames) even if the client
+    // buffer size doesn't have that alignment.
+    mixFrames = (int32_t) (bufTime * voice->mix.rate / oneSecondR);
+    if ((int) frameCount < mixFrames)
+        return "AudioClient buffer frames < mix frames";
+
 #ifdef REPORT
     printf("write_test %s %s\n"
            "IAC bufTime: %I64lld defPeriod: %I64lld\n"
@@ -173,16 +182,13 @@ static const char* sysaudio_allocVoice(FaunVoice* voice, int updateHz,
 
     env = getenv("FAUN_MIX");
     if (env) {
-        int mix;
-        sscanf(env, "%d", &mix);
-        frameCount = mix;
+        sscanf(env, "%d", &mixFrames);
     }
-    printf("Mixer frameCount: %d updateHz: %d\n", frameCount, voice->updateHz);
+    printf("Mixer frameCount: %d updateHz: %d\n", mixFrames, voice->updateHz);
 #endif
 
-    faun_reserve(&voice->mix, frameCount);
-    voice->mix.used = frameCount;
-    //voice->updateHz = voice->mix.rate / frameCount;
+    faun_reserve(&voice->mix, mixFrames);
+    voice->mix.used = mixFrames;
 
     hr = IAudioClient_GetService(waSession.client, &IID_IAudioRenderClient,
                                  &ptr);
