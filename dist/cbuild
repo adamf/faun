@@ -33,7 +33,7 @@ windows)
   mkdir faun
   cd faun
   tar xf /tmp/project.tar.gz
-  copr -t mingw static:true flac:none
+  copr -t mingw static:true flac:2
 ' >$HDIR/${SCRIPT}
 
     #LIB_NAME=libfaun.dll
@@ -62,7 +62,7 @@ linux)
   mkdir faun
   cd faun
   tar xf /tmp/project.tar.gz
-  copr static:true
+  copr static:true flac:2
 ' >$HDIR/${SCRIPT}
 
     LIB_NAME=libfaun.a
