@@ -55,7 +55,7 @@ obj:
 obj/tmsg.o: support/tmsg.c obj
 	$(CC) -c -pipe -Wall -W $< $(CFLAGS) -Isupport $(OPT) -fPIC -o $@
 
-obj/faun.o: faun.c support/wav_write.c support/wav_read.c support/flac.c support/sfx_gen.c support/well512.c support/os_thread.h support/tmsg.h support/flac.h support/sfx_gen.h support/well512.h obj
+obj/faun.o: faun.c support/wav_write.c support/wav_read.c support/foxen-flac.c support/sfx_gen.c support/well512.c support/os_thread.h support/tmsg.h support/foxen-flac.h support/sfx_gen.h support/well512.h obj
 	$(CC) -c -pipe -Wall -W $< $(CFLAGS) -Isupport $(OPT) -fPIC -o $@
 
 $(FAUN_LIB): obj/tmsg.o obj/faun.o
