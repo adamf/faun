@@ -154,11 +154,21 @@ static const char* sysaudio_allocVoice(FaunVoice* voice, int updateHz,
         //voice->updateHz = (uint32_t) (oneSecondR / bufTime);
     }
 
+    {
+    const DWORD quality = AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
+    DWORD streamFlags = AUDCLNT_STREAMFLAGS_NOPERSIST |
+                        AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM |
+                        quality;
+retry:
     hr = IAudioClient_Initialize(waSession.client, AUDCLNT_SHAREMODE_SHARED,
-                                 AUDCLNT_STREAMFLAGS_NOPERSIST |
-                                 AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM |
-                                 AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
+                                 streamFlags,
                                  bufTime, 0, &waSession.format, NULL);
+    if (hr == (HRESULT) 0x80070057 && (streamFlags & quality)) {
+        // Windows Vista returns E_INVALIDARG with *_SRC_DEFAULT_QUALITY.
+        streamFlags &= ~quality;
+        goto retry;
+    }
+    }
     if (FAILED(hr))
         return waError("AudioClient Initialize failed", hr);
 
