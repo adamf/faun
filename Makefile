@@ -35,7 +35,7 @@ ifdef STATIC_LIB
 FAUN_LIB=libfaun.a
 DEP_STATIC=$(DEP_LIB)
 else
-FAUN_LIB=libfaun.so.0.2.2
+FAUN_LIB=libfaun.so.0.2.3
 FAUN_SO=libfaun.so.0
 DEP_STATIC=
 endif
