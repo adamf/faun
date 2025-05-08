@@ -40,6 +40,8 @@
 #include <stdatomic.h>
 #endif
 
+static FILE* _errStream;
+
 #ifdef ANDROID
 #include "sys_aaudio.c"
 #elif defined(__linux__)
@@ -191,10 +193,6 @@ typedef struct {
 FaunSource;
 
 
-static const uint8_t faun_formatSize[FAUN_FORMAT_COUNT] = { 1, 2, 3, 4 };
-static FILE* _errStream;
-
-
 static void faun_sourceInit(FaunSource* src, int si)
 {
     memset(src, 0, sizeof(FaunSource));
@@ -263,6 +261,8 @@ static FaunBuffer* faun_processedBuffer(FaunSource* src)
     return NULL;
 }
 
+
+static const uint8_t faun_formatSize[FAUN_FORMAT_COUNT] = { 1, 2, 3, 4 };
 
 void faun_reserve(FaunBuffer* buf, int frames)
 {
@@ -2029,6 +2029,10 @@ end_play:
 #endif
         if (error)
             fprintf(_errStream, "Faun sysaudio_write: %s\n", error);
+
+#ifdef LAG_ADJUST
+        mixSampleLen = voice->mix.used;
+#endif
 
 #ifdef CAPTURE
         if (wfp) {

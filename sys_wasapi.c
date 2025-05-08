@@ -20,11 +20,17 @@ const IID   IID_IAudioRenderClient = {
 };
 
 
+#define LAG_ADJUST
+
 struct {
     IMMDevice* mmdev;
     IAudioClient* client;
     IAudioRenderClient* render;
     UINT32 rbufSize;            // Frame count.
+#ifdef LAG_ADJUST
+    uint16_t dpMultiple;
+    int16_t  fullWrite;
+#endif
     WAVEFORMATEX format;
     char errorMsg[80];
 }
@@ -52,6 +58,10 @@ static const char* sysaudio_open(const char* appName)
     waSession.mmdev  = NULL;
     waSession.client = NULL;
     waSession.render = NULL;
+#ifdef LAG_ADJUST
+    waSession.dpMultiple = 3;
+    waSession.fullWrite = 0;
+#endif
 
     hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
     if (FAILED(hr))
@@ -145,8 +155,15 @@ static const char* sysaudio_allocVoice(FaunVoice* voice, int updateHz,
         printf("Faun bufTime: %d updateHz: %d\n", bt, hz);
         bufTime = bt;
         voice->updateHz = hz;
+#ifdef LAG_ADJUST
+        waSession.fullWrite = -1;   // Disable lag adjustment.
+#endif
     } else {
+#ifdef LAG_ADJUST
+        bufTime = defPeriod * waSession.dpMultiple;
+#else
         bufTime = defPeriod * 3;
+#endif
 
         /* Use the default 48 Hz update.  The update for 100000 * 3 should be
            33.33 Hz, but audio breaks up unless it is 44-48.
@@ -231,6 +248,29 @@ static void sysaudio_freeVoice(FaunVoice *voice)
     //voice->backend = NULL;
 }
 
+#ifdef LAG_ADJUST
+static const char* waSession_adjustBuffer(FaunVoice* voice)
+{
+    void* ptr;
+    HRESULT hr;
+
+    sysaudio_freeVoice(voice);
+    IAudioClient_Release(waSession.client);
+    waSession.client = NULL;
+
+    // The adjustment is a one-time increase of dpMultiple from 3 to 4.
+    waSession.dpMultiple = 4;
+
+    hr = IMMDevice_Activate(waSession.mmdev, &IID_IAudioClient,
+                            CLSCTX_INPROC_SERVER, NULL, &ptr);
+    if (FAILED(hr))
+        return waError("IMMDevice_Activate failed", hr);
+
+    waSession.client = ptr;
+    return sysaudio_allocVoice(voice, voice->updateHz, NULL);
+}
+#endif
+
 #ifdef REPORT
 static int writeCycle = 0;
 #endif
@@ -244,6 +284,7 @@ static const char* sysaudio_write(FaunVoice* voice, const void* data,
     UINT32 padding;
     UINT32 favail;
     UINT32 flen = len / waSession.format.nBlockAlign;
+    int slept = 0;
 #ifdef REPORT
     int32_t stat[22];
     int statUsed = 0;
@@ -279,6 +320,7 @@ static const char* sysaudio_write(FaunVoice* voice, const void* data,
             flen -= favail;
         } else {
             Sleep(2);
+            ++slept;
         }
     }
 
@@ -288,6 +330,26 @@ static const char* sysaudio_write(FaunVoice* voice, const void* data,
         printf("%d ", stat[i]);
     printf("]\n");
 #endif
+
+#ifdef LAG_ADJUST
+    // We know audio is being delivered on schedule only if a Sleep is
+    // required.  Therefore, the client buffer is increased if no Sleep occurs
+    // within 5 sequential sysaudio_write calls.
+
+    // if (writeCycle == 90) { waSession.fullWrite = 4; slept = 0; }
+    if (waSession.fullWrite >= 0) {
+        if (slept) {
+            waSession.fullWrite = 0;
+        } else {
+            if (++waSession.fullWrite == 5) {
+                waSession.fullWrite = -1;   // Disable lag adjustment.
+                fprintf(_errStream, "Faun sysaudio_write buffer adjusted\n");
+                return waSession_adjustBuffer(voice);
+            }
+        }
+    }
+#endif
+
     return NULL;
 }
 
