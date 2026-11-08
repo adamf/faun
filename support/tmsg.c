@@ -75,6 +75,7 @@ static inline int semaphorePost(Semaphore sema) {
 #include <dispatch/dispatch.h>
 #include <dispatch/time.h>
 typedef dispatch_semaphore_t Semaphore;
+typedef struct timespec MsgTime;
 #define semaphoreDestroy(sema)  dispatch_release(sema)
 #define semaphorePost(sema)     dispatch_semaphore_signal(sema)
 #else
@@ -141,7 +142,8 @@ static inline int semaphoreTimedWait(Semaphore* sema, int timeout)
     return -1;
 #elif defined(__APPLE__)
     intptr_t r = dispatch_semaphore_wait(*sema,
-                                dispatch_time(DISPATCH_TIME_NOW, timeout));
+                                dispatch_time(DISPATCH_TIME_NOW,
+                                              (int64_t) timeout * NSEC_PER_MSEC));
     return r ? 1 : 0;
 #else
     struct timespec ts;
@@ -356,6 +358,11 @@ int tmsg_popTimespec(struct MsgPort* mp, void* msg, MsgTime* ts)
         return 1;
     if (r != WAIT_OBJECT_0)
         return -1;
+#elif defined(__APPLE__)
+    // macOS has no sem_timedwait; wait on the dispatch semaphore until the
+    // absolute wall-clock time in ts.
+    if (dispatch_semaphore_wait(mp->reader, dispatch_walltime(ts, 0)))
+        return 1;
 #else
     int r;
 
