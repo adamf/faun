@@ -46,6 +46,8 @@ static FILE* _errStream;
 #include "sys_aaudio.c"
 #elif defined(__linux__)
 #include "sys_pulseaudio.c"
+#elif defined(__APPLE__)
+#include "sys_coreaudio.c"
 #elif defined(_WIN32)
 #include "sys_wasapi.c"
 #else
